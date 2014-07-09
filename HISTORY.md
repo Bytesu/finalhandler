@@ -1,3 +1,9 @@
+unreleased
+==========
+
+  * Add `text/plain` fallback response
+  * Send complete HTML document
+
 0.2.0 / 2014-09-03
 ==================
 
