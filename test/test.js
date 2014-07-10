@@ -30,6 +30,24 @@ describe('finalhandler(req, res)', function () {
       .get('/')
       .expect(400, done)
     })
+
+    it('should ignore non-error err.status code', function (done) {
+      var err = new Error()
+      err.status = 201
+      var server = createServer(err)
+      request(server)
+      .get('/')
+      .expect(500, done)
+    })
+
+    it('should ignore weird err.status', function (done) {
+      var err = new Error()
+      err.status = 'oh no'
+      var server = createServer(err)
+      request(server)
+      .get('/')
+      .expect(500, done)
+    })
   })
 
   describe('404 response', function () {

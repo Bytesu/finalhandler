@@ -51,29 +51,30 @@ function finalhandler(req, res, options) {
     var body
     var constructBody
     var msg
+    var status = res.statusCode
 
     // unhandled error
     if (err) {
       // default status code to 500
-      if (!res.statusCode || res.statusCode < 400) {
-        res.statusCode = 500
+      if (!status || status < 400) {
+        status = 500
       }
 
       // respect err.status
-      if (err.status) {
-        res.statusCode = err.status
+      if (err.status >= 400 && err.status < 600) {
+        status = err.status
       }
 
       // production gets a basic error message
       msg = stacktrace
         ? err.stack || String(err)
-        : http.STATUS_CODES[res.statusCode]
+        : http.STATUS_CODES[status]
     } else {
-      res.statusCode = 404
+      status = 404
       msg = 'Cannot ' + req.method + ' ' + (req.originalUrl || req.url)
     }
 
-    debug('default %s', res.statusCode)
+    debug('default %s', status)
 
     // schedule onerror callback
     if (err && onerror) {
@@ -101,10 +102,10 @@ function finalhandler(req, res, options) {
     }
 
     // construct body
-    body = constructBody(res.statusCode, msg)
+    body = constructBody(status, msg)
 
     // send response
-    send(req, res, res.statusCode, body)
+    send(req, res, status, body)
   }
 }
 
