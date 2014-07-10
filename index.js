@@ -41,6 +41,15 @@ module.exports = finalhandler
 function finalhandler(req, res, options) {
   options = options || {}
 
+  // get message option
+  var message = options.message === true
+    ? getDefaultErrorMessage
+    : options.message || false
+
+  if (typeof message !== 'boolean' && typeof message !== 'function') {
+    throw new TypeError('option message must be boolean or function')
+  }
+
   // get error callback
   var onerror = options.onerror
 
@@ -65,10 +74,10 @@ function finalhandler(req, res, options) {
         status = err.status
       }
 
-      // production gets a basic error message
+      // build a stack trace or normal message
       msg = stacktrace
-        ? err.stack || String(err)
-        : http.STATUS_CODES[status]
+        ? getErrorStack(err, status, message)
+        : getErrorMessage(err, status, message)
     } else {
       status = 404
       msg = 'Cannot ' + req.method + ' ' + (req.originalUrl || req.url)
@@ -156,6 +165,75 @@ function constructTextBody(status, message) {
   body.type = 'text/plain; charset=utf-8'
 
   return body
+}
+
+/**
+ * Get message from error
+ *
+ * @param {object} err
+ * @param {number} status
+ * @param {function} message
+ * @return {string}
+ * @api private
+ */
+
+function getErrorMessage(err, status, message) {
+  var msg
+
+  if (message) {
+    msg = message(err, status)
+  }
+
+  return msg || http.STATUS_CODES[status]
+}
+
+/**
+ * Get default message from error
+ *
+ * @param {object} err
+ * @return {string}
+ * @api private
+ */
+
+function getDefaultErrorMessage(err) {
+  return err.status >= 400 && err.status < 600
+    ? err.message
+    : undefined
+}
+
+/**
+ * Get stack from error with custom message
+ *
+ * @param {object} err
+ * @param {number} status
+ * @param {function} message
+ * @return {string}
+ * @api private
+ */
+
+function getErrorStack(err, status, message) {
+  var stack = err.stack || ''
+
+  if (message) {
+    var index = stack.indexOf('\n')
+    var msg = message(err, status) || err.message || String(err)
+    var name = err.name
+
+    // slice implicit message from top of stack
+    if (index !== -1) {
+      stack = stack.substr(index)
+    }
+
+    // prepend name and message to stack
+    stack = name
+      ? name + ': ' + msg + stack
+      : msg + stack
+  } else if (!stack) {
+    // stringify error when no message generator and no stack
+    stack = String(err)
+  }
+
+  return stack
 }
 
 /**
