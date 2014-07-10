@@ -90,11 +90,15 @@ describe('finalhandler(req, res)', function () {
   })
 
   describe('error response', function () {
-    it('should include error stack', function (done) {
+    it('should not include stack trace', function (done) {
       var server = createServer(new Error('boom!'))
       request(server)
       .get('/foo')
-      .expect(500, /Error: boom!.*at.*:[0-9]+:[0-9]+/, done)
+      .expect(500, /Internal Server Error/, function (err, res) {
+        if (err) return done(err)
+        should(res.text).not.match(/boom!/)
+        done()
+      })
     })
 
     it('should handle HEAD', function (done) {
@@ -110,26 +114,6 @@ describe('finalhandler(req, res)', function () {
       .get('/foo')
       .expect('X-Content-Type-Options', 'nosniff')
       .expect(500, done)
-    })
-
-    it('should handle non-error-objects', function (done) {
-      var server = createServer('lame string')
-      request(server)
-      .get('/foo')
-      .expect(500, /lame string/, done)
-    })
-
-    it('should send staus code name when production', function (done) {
-      var err = new Error('boom!')
-      err.status = 501
-      var server = createServer(err, {env: 'production'})
-      request(server)
-      .get('/foo')
-      .expect(501, /Not Implemented/, function (err, res) {
-        if (err) return done(err)
-        should(res.text).not.match(/boom!/)
-        done()
-      })
     })
 
     describe('when there is a request body', function () {
@@ -188,14 +172,6 @@ describe('finalhandler(req, res)', function () {
         .expect('Content-Type', 'text/html; charset=utf-8')
         .expect(500, /<html/, done)
       })
-
-      it('should escape error stack', function (done) {
-        var server = createServer(new Error('boom!'))
-        request(server)
-        .get('/foo')
-        .set('Accept', 'text/html')
-        .expect(500, /Error: boom!<br> &nbsp; &nbsp;at/, done)
-      })
     })
 
     describe('when HTML not acceptable', function () {
@@ -205,7 +181,7 @@ describe('finalhandler(req, res)', function () {
         .get('/foo')
         .set('Accept', 'application/x-bogus')
         .expect('Content-Type', 'text/plain; charset=utf-8')
-        .expect(500, /Error: boom!\n    at/, done)
+        .expect(500, 'Internal Server Error\n', done)
       })
     })
 
@@ -280,6 +256,40 @@ describe('finalhandler(req, res)', function () {
         should(error).equal(err)
         done()
       })
+    })
+  })
+
+  describe('stacktrace', function () {
+    it('should include error stack', function (done) {
+      var server = createServer(new Error('boom!'), {stacktrace: true})
+      request(server)
+      .get('/foo')
+      .expect(500, /Error: boom!.*at.*:[0-9]+:[0-9]+/, done)
+    })
+
+    it('should escape error stack for HTML response', function (done) {
+      var server = createServer(new Error('boom!'), {stacktrace: true})
+      request(server)
+      .get('/foo')
+      .set('Accept', 'text/html')
+      .expect(500, /Error: boom!<br> &nbsp; &nbsp;at/, done)
+    })
+
+    it('should not escape error stack for plain text response', function (done) {
+      var server = createServer(new Error('boom!'), {stacktrace: true})
+      request(server)
+      .get('/foo')
+      .set('Accept', 'application/x-bogus')
+      .expect('Content-Type', 'text/plain; charset=utf-8')
+      .expect(500, /Error: boom!\n    at/, done)
+    })
+
+    it('should handle non-error-objects', function (done) {
+      var server = createServer('lame string', {stacktrace: true})
+      request(server)
+      .get('/foo')
+      .set('Accept', 'text/html')
+      .expect(500, /lame string/, done)
     })
   })
 })

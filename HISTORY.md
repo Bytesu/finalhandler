@@ -1,7 +1,9 @@
 unreleased
 ==========
 
+  * Add `stacktrace` option
   * Add `text/plain` fallback response
+  * Remove `env` option; use `stacktrace` option instead
   * Send complete HTML document
 
 0.2.0 / 2014-09-03
